@@ -16,7 +16,7 @@ https://github.com/postech-ami/Zero-Shot-Depth-Completion.git
 ```
 
 2. Install the requirements with pip
-```
+```bash
 pip insall -r requirements.txt
 ```
 
@@ -26,18 +26,18 @@ For [Marigold](https://marigoldmonodepth.github.io/), you can easily use the Hug
 ## Run
 We provide two depth diffusion models, [Marigold](https://marigoldmonodepth.github.io/) and [DepthFM](https://depthfm.github.io/), for zero-shot depth completion. Each model comes with its own dedicated script.
 
-```
+```bash
 # Marigold base
-sh scripts/run_opt_marigold.sh  
+sh scripts/run_opt_marigold.sh
 
 # DepthFM base
-sh scripts/run_opt_depthfm.sh  
+sh scripts/run_opt_depthfm.sh
 ```
 
 Each script consists of two steps:
 1. Generating structure-guided relative depth.
 2. Performing test-time alignment with sparse depth measurements.
-```
+```bash
 # Get Marigold's initial affine-invariant, sharp structure depth guidance
 python run_marigold.py --input_root_dir "$INPUT_DIR"
 
@@ -49,18 +49,18 @@ We recommend checking the arguments of each Python script for controllability.
 
 
 ## Citation
-```
+```latex
 @inproceedings{
-hyoseok2024zeroshot,
-title={Zero-shot Depth Completion via Test-time Alignment with Affine-invariant Depth Prior},
-author={Lee Hyoseok and Kyeong Seon Kim and Kwon Byung-Ki and Tae-Hyun Oh},
-booktitle={The 39th Annual AAAI Conference on Artificial Intelligence},
-year={2025},
+    hyoseok2024zeroshot,
+    title={Zero-shot Depth Completion via Test-time Alignment with Affine-invariant Depth Prior},
+    author={Lee Hyoseok and Kyeong Seon Kim and Kwon Byung-Ki and Tae-Hyun Oh},
+    booktitle={The 39th Annual AAAI Conference on Artificial Intelligence},
+    year={2025},
 }
 ```
 
 ## Contact
-Lee Hyoseok (hyos99@postech.ac.kr)  
+Lee Hyoseok (hyos99@postech.ac.kr)
 Kyeong Seon Kim (ella94.ai@gmail.com)
 
 ## Acknowledgement
@@ -77,7 +77,7 @@ Our implementation is based on and adapted from seminal projects. We sincerely a
 
 This repository includes a small subset (2-3 samples) of the KITTI Depth Completion dataset for demonstration purposes. Full dataset can be accessed at [KITTI Depth Completion Benchmark](https://www.cvlibs.net/datasets/kitti/eval_depth.php?benchmark=depth_completion).
 
-**KITTI Dataset License:**  
+**KITTI Dataset License:**
 The KITTI dataset is copyrighted by the Karlsruhe Institute of Technology and Toyota Technological Institute at Chicago. It is provided for non-commercial research and educational purposes only.
 
 

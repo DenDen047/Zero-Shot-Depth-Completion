@@ -9,4 +9,4 @@ python run_marigold.py --input_root_dir "$INPUT_DIR"
 echo "Structure guidance is generated."
 
 # Run the test-time alignment with sparse depth
-python run_opt_marigold.py --input_root_dir "$INPUT_DIR" --r_ssim_depth
+python run_opt_marigold.py --input_root_dir "$INPUT_DIR" --r_ssim_depth --inference_size 128 128

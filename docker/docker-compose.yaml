@@ -1,0 +1,30 @@
+services:
+  project-core:
+    container_name: zero-shot-depth-completion
+    deploy:
+      resources:
+        reservations:
+          memory: 16G
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              device_ids: ['0']
+    image: denden047/zero-shot-depth-completion
+    build:
+      args:
+        - BASE_IMAGE=nvidia/cuda:12.1.0-devel-ubuntu20.04
+        - PYTHON_VERSION=3.11
+        - FORCE_CUDA=1
+        - UID=1001
+        - GID=1001
+        - USER_NAME=naoya
+        - GROUP_NAME=naoya
+        - TORCH_CUDA_ARCH_LIST=7.5
+      context: ./
+      dockerfile: Dockerfile
+    tty: true
+    volumes:
+      - ../:/home/naoya/working
+      - /home/naoya/data/Zero-Shot-Depth-Completion:/data
+    # ports:
+    #   - 8000:8000
