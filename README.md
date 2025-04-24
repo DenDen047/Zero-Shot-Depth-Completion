@@ -21,7 +21,15 @@ pip insall -r requirements.txt
 ```
 
 3. Model checkpoint
-For [Marigold](https://marigoldmonodepth.github.io/), you can easily use the Hugging Face Hub, as it is already integrated into this repository. For DepthFM, you need to download the weights by following the instructions on the [DepthFM Github](https://github.com/CompVis/depth-fm)
+
+    For [Marigold](https://marigoldmonodepth.github.io/), you can easily use the Hugging Face Hub, as it is
+    already integrated into this repository.
+
+    For DepthFM, you need to download the weights by following the instructions on the [DepthFM Github](https://github.com/CompVis/depth-fm)
+
+    ```bash
+    wget https://ommer-lab.com/files/depthfm/depthfm-v1.ckpt -P /data/models/
+    ```
 
 ## Run
 We provide two depth diffusion models, [Marigold](https://marigoldmonodepth.github.io/) and [DepthFM](https://depthfm.github.io/), for zero-shot depth completion. Each model comes with its own dedicated script.

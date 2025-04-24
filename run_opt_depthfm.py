@@ -43,21 +43,21 @@ if "__main__" == __name__:
         required=True,
         help="Checkpoint path of depthfm",
     )
-    
+
     parser.add_argument(
         "--device",
         type=str,
         default="cuda",
         help="Device to run inference on.",
     )
-    
+
     parser.add_argument(
         "--seed",
         type=int,
         default=0,
         help="Fix random seed.",
     )
-    
+
     parser.add_argument(
         "--input_root_dir",
         type=str,
@@ -68,15 +68,15 @@ if "__main__" == __name__:
     parser.add_argument(
         "--output_dir", type=str, default=None, help="Output directory."
     )
-    
+
     parser.add_argument(
         "--r_ssim_depth", action='store_true', help="For r-ssim, use depth map instead of rgb image."
     )
-    
+
     parser.add_argument(
-    "--inference_size", type=tuple, default=(512, 512), help="Inference depth size as (width, height)."
-    )   
-    
+        "--inference_size", nargs='+', type=int, default=(512, 512), help="Inference depth size as (width, height)."
+    )
+
     parser.add_argument(
         "--data_type",
         type=str,
@@ -87,17 +87,17 @@ if "__main__" == __name__:
 
     parser.add_argument("--num_steps", type=int, default=4,
                         help="Number of steps for ODE solver")
-    
+
     parser.add_argument("--n_inter", type=int, default=0,
                         help="intermediate step estimation. Default is 0, which means one-step generation. If set to 1, it will generate two-step depth map.")
 
     args = parser.parse_args()
-    
+
     metric = DepthCompletionMetric(data_type=args.data_type)
 
     # Base model setting
     depth_diffusion = DepthFM(args.checkpoint, metric = metric).to(args.device)
-    
+
     # Set seed
     set_seed(args.seed)
 
@@ -111,27 +111,27 @@ if "__main__" == __name__:
         if "rgb" in filename: rgb_path = os.path.join(args.input_root_dir, filename)
         if "sparse" in filename: sparse_path = os.path.join(args.input_root_dir, filename)
         if "gt" in filename: gt_path = os.path.join(args.input_root_dir, filename)
-    
+
     rgb_img = Image.open(rgb_path).convert("RGB")
     sparse_depth_map = Image.open(sparse_path)
     gt_depth_map = Image.open(gt_path)
-    
+
     # FIXME - for 104, and adjust it for void
     from torchvision import transforms
     transform = transforms.Compose([
             transforms.PILToTensor(),
             transforms.CenterCrop((352, 1216)),
         ])
-    
+
     # rgb_img = transform(rgb_img).unsqueeze(0)[..., 104:, :]
     # sparse_depth_map = transform(sparse_depth_map).unsqueeze(0)[..., 104:, :] / 256.
     # gt_depth_map = transform(gt_depth_map).unsqueeze(0)[..., 104:, :] / 256.
-    
+
     if args.inference_size is not None: rgb_img = transforms.Resize(args.inference_size)(transform(rgb_img)).unsqueeze(0)
     else: rgb_img = transform(rgb_img).unsqueeze(0)
     sparse_depth_map = transform(sparse_depth_map).unsqueeze(0) / 256.
     gt_depth_map = transform(gt_depth_map).unsqueeze(0) / 256.
-    
+
     if args.r_ssim_depth:
         relative_structure_depth = torch.load(os.path.join(args.input_root_dir, "depthfm_depth.pt"), map_location=args.device).to(torch.float32)
     else:
@@ -139,53 +139,52 @@ if "__main__" == __name__:
 
     gt_mask = gt_depth_map>0
     sparse_mask = sparse_depth_map>1e-8
-        
+
     # Scale prediction to [0, 1]
     sparse_depth_map = sparse_depth_map.to(args.device)
 
-    norm_sparse_depth = normalize_sparse_depth(sparse_depth_map)    
+    norm_sparse_depth = normalize_sparse_depth(sparse_depth_map)
     norm_rgb = normalize_rgb(rgb_img).to(torch.float32).to(args.device)
-    
+
     metric = DepthCompletionMetric(data_type=args.data_type)
     with torch.autocast(device_type="cuda", dtype=torch.float32):
         # depth = model.predict_depth(im, num_steps=args.num_steps, ensemble_size=args.ensemble_size)
         depth = depth_diffusion.forward(norm_rgb, num_steps=args.num_steps, ensemble_size=1, norm_sparse_depth=norm_sparse_depth, sparse_depth_map=sparse_depth_map, gt_depth_map=gt_depth_map, n_intermediates=args.n_inter,
                                         relative_structure_depth=relative_structure_depth, inference_size=args.inference_size)
-    
+
     depth = F.interpolate(depth, size=sparse_depth_map.squeeze().shape, mode='bilinear', align_corners=True, antialias=True)
-            
+
     metrics = metric.evaluate(depth.squeeze().detach().cpu().numpy(), gt_depth_map.squeeze(), sparse_depth_map.squeeze())
-    
-    # Least square fitting                
+
+    # Least square fitting
     pred = depth.squeeze().detach().cpu().numpy()
     gt = sparse_depth_map.squeeze().detach().cpu().numpy()
-    
+
     mask = gt > 0
     num_valid = mask.sum()
-    
+
     sparse_depth = sparse_depth_map.squeeze().detach().cpu().numpy()
     mask = sparse_depth>0.
     min_sparse = np.min(sparse_depth[mask])
     max_sparse = np.max(sparse_depth[mask])
-    
+
     pred = pred * (max_sparse - min_sparse) + min_sparse
     a,b = np.polyfit(pred[mask], gt[mask], deg=1)
 
     if a > 0:
         pred = a * pred + b
     pred = np.clip(pred, 0, 80)
-    
+
     # Save raw completed depth map
     pred = (pred*256).astype(np.uint16)
     pred_raw = Image.fromarray(pred)
     pred_raw.save(os.path.join(output_dir, "depthfm_pred_raw.png"))
-    
+
     # Save colorized depth map
     cmap = 'jet'
     cm = plt.get_cmap(cmap)
-    
+
     depth_color = depth.squeeze().detach().cpu().numpy()
     depth_color = cm(depth_color)
     plt.imsave(os.path.join(output_dir, "depthfm_pred_color.png"), depth_color)
 
-    

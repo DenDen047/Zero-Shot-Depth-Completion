@@ -2,7 +2,7 @@
 export CUDA_VISIBLE_DEVICES=0
 
 # DEPTHFM_CKPT_PATH="./pretrained_models/depthfm.pth"
-DEPTHFM_CKPT_PATH="/node_data/hyoseok/checkpoints/depthfm-v1.ckpt"
+DEPTHFM_CKPT_PATH="/data/models/depthfm-v1.ckpt"
 INPUT_DIR="./examples/3"
 
 # Get depthfm initial affine-invariant sharp structure depth guidance
