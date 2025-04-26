@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 
 from PIL import Image
 from tqdm.auto import tqdm
+from loguru import logger
 
 from marigold import MarigoldPipeline
 
@@ -99,10 +100,22 @@ if "__main__" == __name__:
     os.makedirs(output_dir, exist_ok=True)
 
     # Read information
+    rgb_path = None
+    sparse_path = None
+    gt_path = None
     for filename in os.listdir(args.input_root_dir):
         if "rgb" in filename: rgb_path = os.path.join(args.input_root_dir, filename)
         if "sparse" in filename: sparse_path = os.path.join(args.input_root_dir, filename)
         if "gt" in filename: gt_path = os.path.join(args.input_root_dir, filename)
+    if rgb_path is None:
+        logger.error("RGB image is not found.")
+        exit()
+    if sparse_path is None:
+        logger.error("Sparse depth image is not found.")
+        exit()
+    if gt_path is None:
+        logger.warning("GT depth image is not found. Use sparse depth image as GT.")
+        gt_path = sparse_path
 
     rgb_img = Image.open(rgb_path).convert("RGB")
     sparse_depth_map = Image.open(sparse_path)
@@ -112,7 +125,7 @@ if "__main__" == __name__:
     from torchvision import transforms
     transform = transforms.Compose([
             transforms.PILToTensor(),
-            transforms.CenterCrop((352, 1216)),
+            # transforms.CenterCrop((352, 1216)),
         ])
 
     # rgb_img = transform(rgb_img).unsqueeze(0)[..., 104:, :]
