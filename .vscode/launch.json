@@ -1,0 +1,28 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Visualize Depth",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "visualize_depth.py",
+            "args": [
+                "--input_dir",
+                "data/04_feature/40174_1725948826_797978120",
+                "--output_dir",
+                "data/08_reporting/40174_1725948826_797978120"
+            ],
+            "console": "integratedTerminal"
+        }
+    ]
+}
