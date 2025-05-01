@@ -19,19 +19,21 @@
 
 import argparse
 import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
-
-from PIL import Image
-from tqdm.auto import tqdm
 from loguru import logger
+from PIL import Image
 
 from marigold import MarigoldPipeline
-
+from utils.depth_completion_util import (
+    DepthCompletionMetric,
+    normalize_rgb,
+    normalize_sparse_depth,
+)
 from utils.general_util import set_seed
-from utils.depth_completion_util import normalize_rgb, normalize_sparse_depth, DepthCompletionMetric
 
 if "__main__" == __name__:
     # -------------------- Arguments --------------------
@@ -71,11 +73,17 @@ if "__main__" == __name__:
     )
 
     parser.add_argument(
-        "--r_ssim_depth", action='store_true', help="For r-ssim, use depth map instead of rgb image."
+        "--r_ssim_depth",
+        action="store_true",
+        help="For r-ssim, use depth map instead of rgb image.",
     )
 
     parser.add_argument(
-    "--inference_size", nargs='+', type=int, default=(512, 512), help="Inference depth size as (width, height)."
+        "--inference_size",
+        nargs="+",
+        type=int,
+        default=(512, 512),
+        help="Inference depth size as (width, height).",
     )
 
     parser.add_argument(
@@ -83,20 +91,24 @@ if "__main__" == __name__:
         type=str,
         choices=["indoor", "outdoor"],
         default="outdoor",
-        help="Specify the evaluation type: 'indoor' or 'outdoor'."
+        help="Specify the evaluation type: 'indoor' or 'outdoor'.",
     )
 
     args = parser.parse_args()
 
     # Base model setting
-    depth_diffusion = MarigoldPipeline.from_pretrained(args.checkpoint, torch_dtype=torch.float32 ).to(args.device)
+    depth_diffusion = MarigoldPipeline.from_pretrained(
+        args.checkpoint, torch_dtype=torch.float32
+    ).to(args.device)
 
     # Set seed
     set_seed(args.seed)
 
     # Set output directory: default is "{input_directory}/outputs"
-    if args.output_dir is not None: output_dir = args.output_dir
-    else: output_dir = os.path.join(args.input_root_dir, "outputs")
+    if args.output_dir is not None:
+        output_dir = args.output_dir
+    else:
+        output_dir = os.path.join(args.input_root_dir, "outputs")
     os.makedirs(output_dir, exist_ok=True)
 
     # Read information
@@ -104,9 +116,12 @@ if "__main__" == __name__:
     sparse_path = None
     gt_path = None
     for filename in os.listdir(args.input_root_dir):
-        if "rgb" in filename: rgb_path = os.path.join(args.input_root_dir, filename)
-        if "sparse" in filename: sparse_path = os.path.join(args.input_root_dir, filename)
-        if "gt" in filename: gt_path = os.path.join(args.input_root_dir, filename)
+        if "rgb" in filename:
+            rgb_path = os.path.join(args.input_root_dir, filename)
+        if "sparse" in filename:
+            sparse_path = os.path.join(args.input_root_dir, filename)
+        if "gt" in filename:
+            gt_path = os.path.join(args.input_root_dir, filename)
     if rgb_path is None:
         logger.error("RGB image is not found.")
         exit()
@@ -123,26 +138,36 @@ if "__main__" == __name__:
 
     # FIXME - for 104, and adjust it for void
     from torchvision import transforms
-    transform = transforms.Compose([
+
+    transform = transforms.Compose(
+        [
             transforms.PILToTensor(),
             # transforms.CenterCrop((352, 1216)),
-        ])
+        ]
+    )
 
     # rgb_img = transform(rgb_img).unsqueeze(0)[..., 104:, :]
     # sparse_depth_map = transform(sparse_depth_map).unsqueeze(0)[..., 104:, :] / 256.
     # gt_depth_map = transform(gt_depth_map).unsqueeze(0)[..., 104:, :] / 256.
-    if args.inference_size is not None: rgb_img = transforms.Resize(args.inference_size)(transform(rgb_img)).unsqueeze(0)
-    else: rgb_img = transform(rgb_img).unsqueeze(0)
-    sparse_depth_map = transform(sparse_depth_map).unsqueeze(0) / 256.
-    gt_depth_map = transform(gt_depth_map).unsqueeze(0) / 256.
+    if args.inference_size is not None:
+        rgb_img = transforms.Resize(args.inference_size)(transform(rgb_img)).unsqueeze(
+            0
+        )
+    else:
+        rgb_img = transform(rgb_img).unsqueeze(0)
+    sparse_depth_map = transform(sparse_depth_map).unsqueeze(0) / 256.0
+    gt_depth_map = transform(gt_depth_map).unsqueeze(0) / 256.0
 
     if args.r_ssim_depth:
-        relative_structure_depth = torch.load(os.path.join(args.input_root_dir, "marigold_depth.pt"), map_location=args.device).to(torch.float32)
+        relative_structure_depth = torch.load(
+            os.path.join(args.input_root_dir, "marigold_depth.pt"),
+            map_location=args.device,
+        ).to(torch.float32)
     else:
         relative_structure_depth = None
 
-    gt_mask = gt_depth_map>0
-    sparse_mask = sparse_depth_map>1e-8
+    gt_mask = gt_depth_map > 0
+    sparse_mask = sparse_depth_map > 1e-8
 
     # Scale prediction to [0, 1]
     sparse_depth_map = sparse_depth_map.to(args.device)
@@ -151,16 +176,16 @@ if "__main__" == __name__:
     norm_rgb = normalize_rgb(rgb_img).to(torch.float32).to(args.device)
 
     metric = DepthCompletionMetric(data_type=args.data_type)
-    with torch.autocast('cuda', dtype=torch.float32):
+    with torch.autocast("cuda", dtype=torch.float32):
         depth_latent = depth_diffusion.single_infer_alignment(
-            rgb_in=norm_rgb,#.type('torch.HalfTensor').to(device),
+            rgb_in=norm_rgb,  # .type('torch.HalfTensor').to(device),
             num_inference_steps=50,
             show_pbar=True,
-            sparse_depth = norm_sparse_depth,
-            gt_depth_map = gt_depth_map,
-            sparse_depth_map = sparse_depth_map,
+            sparse_depth=norm_sparse_depth,
+            gt_depth_map=gt_depth_map,
+            sparse_depth_map=sparse_depth_map,
             metric=metric,
-            relative_structure_depth = relative_structure_depth,
+            relative_structure_depth=relative_structure_depth,
             inference_size=args.inference_size,
             # optimization parameters
             # lr_decay_weight = 0.5, latent_lr=3e-2, pixel_lr=5e-2, latent_opt_steps=100, pixel_opt_steps=1000
@@ -170,9 +195,19 @@ if "__main__" == __name__:
         depth = torch.clip(depth, -1.0, 1.0)
         depth = (depth + 1.0) / 2.0
 
-        depth = F.interpolate(depth, size=sparse_depth_map.squeeze().shape, mode='bilinear', align_corners=True, antialias=True)
+        depth = F.interpolate(
+            depth,
+            size=sparse_depth_map.squeeze().shape,
+            mode="bilinear",
+            align_corners=True,
+            antialias=True,
+        )
 
-        metrics = metric.evaluate(depth.squeeze().detach().cpu().numpy(), gt_depth_map.squeeze(), sparse_depth_map.squeeze())
+        metrics = metric.evaluate(
+            depth.squeeze().detach().cpu().numpy(),
+            gt_depth_map.squeeze(),
+            sparse_depth_map.squeeze(),
+        )
 
     # Least square fitting
     pred = depth.squeeze().detach().cpu().numpy()
@@ -182,24 +217,24 @@ if "__main__" == __name__:
     num_valid = mask.sum()
 
     sparse_depth = sparse_depth_map.squeeze().detach().cpu().numpy()
-    mask = sparse_depth>0.
+    mask = sparse_depth > 0.0
     min_sparse = np.min(sparse_depth[mask])
     max_sparse = np.max(sparse_depth[mask])
 
     pred = pred * (max_sparse - min_sparse) + min_sparse
-    a,b = np.polyfit(pred[mask], gt[mask], deg=1)
+    a, b = np.polyfit(pred[mask], gt[mask], deg=1)
 
     if a > 0:
         pred = a * pred + b
     pred = np.clip(pred, 0, 80)
 
     # Save raw completed depth map
-    pred = (pred*256).astype(np.uint16)
+    pred = (pred * 256).astype(np.uint16)
     pred_raw = Image.fromarray(pred)
     pred_raw.save(os.path.join(output_dir, "marigold_pred_raw.png"))
 
     # Save colorized depth map
-    cmap = 'jet'
+    cmap = "jet"
     cm = plt.get_cmap(cmap)
 
     depth_color = depth.squeeze().detach().cpu().numpy()
