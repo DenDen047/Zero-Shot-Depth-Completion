@@ -12,12 +12,12 @@ This code was tested on Ubuntu 18.04 with Python 3.11, CUDA 12.1 and PyTorch 2.5
 
 1. Clone this repository
 ```
-https://github.com/postech-ami/Zero-Shot-Depth-Completion.git
+git clone https://github.com/postech-ami/Zero-Shot-Depth-Completion.git
 ```
 
 2. Install the requirements with pip
 ```bash
-pip insall -r requirements.txt
+pip install -r requirements.txt
 ```
 
 3. Model checkpoint
